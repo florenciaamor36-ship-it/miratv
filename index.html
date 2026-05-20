@@ -45,6 +45,7 @@
         .settings-card label{font-weight:600;font-size:0.85rem;display:block;margin-bottom:4px;color:var(--text)}
         .settings-card .hint{font-size:0.7rem;color:var(--muted);margin-bottom:8px}
         .settings-card input[type="url"]{width:100%;background:var(--bg);border:1px solid rgba(255,255,255,0.08);color:var(--text);padding:8px 12px;border-radius:6px;font-size:0.8rem;outline:none;font-family:'Inter',sans-serif;margin-bottom:8px}
+        textarea{width:100%;height:150px;background:var(--bg);border:1px solid rgba(255,255,255,0.08);color:var(--text);padding:8px 12px;border-radius:6px;font-size:0.75rem;outline:none;font-family:monospace;resize:vertical;margin-bottom:8px}
     </style>
 </head>
 <body>
@@ -70,19 +71,28 @@
 <div class="page active" id="pageHome">
     <div id="tvSections"><p style="text-align:center;color:var(--muted);padding:40px">No hay canales. Andá a Ajustes (⚙️) para importar una lista.</p></div>
 </div>
-
 <div class="page" id="pageMovies"><div id="movieSections"></div></div>
 <div class="page" id="pageSeries"><div id="seriesSections"></div></div>
 
 <div class="page" id="pageSettings">
     <div class="settings-section">
-        <h3>📥 Importar lista M3U</h3>
+        <h3>📥 Importar lista por URL</h3>
         <div class="settings-card">
             <label>URL de la lista M3U</label>
-            <p class="hint">Pegá el enlace de cualquier lista IPTV para probarla</p>
+            <p class="hint">Para listas HTTPS (iptv-org, GitHub, etc.)</p>
             <input type="url" id="m3uUrl" placeholder="https://ejemplo.com/lista.m3u">
-            <button class="settings-btn primary" onclick="importarLista()">📥 Cargar lista</button>
+            <button class="settings-btn primary" onclick="importarLista()">📥 Cargar desde URL</button>
             <p class="settings-info" id="importStatus"></p>
+        </div>
+    </div>
+    <div class="settings-section">
+        <h3>📋 Pegar lista manualmente</h3>
+        <div class="settings-card">
+            <label>Contenido de la lista M3U</label>
+            <p class="hint">Para listas HTTP o cuando la URL no funciona. Abrí la URL en el navegador, copiá todo el texto y pegalo acá.</p>
+            <textarea id="m3uTexto" placeholder="#EXTM3U..."></textarea>
+            <button class="settings-btn primary" onclick="importarTexto()">📋 Cargar texto</button>
+            <p class="settings-info" id="importTextStatus"></p>
         </div>
     </div>
     <div class="settings-section"><h3>🗑️</h3><button class="settings-btn danger" onclick="clearData()">🗑️ Borrar todo</button></div>
