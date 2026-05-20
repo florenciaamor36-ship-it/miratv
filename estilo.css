@@ -1,3 +1,5 @@
 .settings-card{background:var(--card);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:16px;margin-bottom:8px}
-.settings-card label{font-weight:600;font-size:0.9rem;display:block;margin-bottom:4px}
+.settings-card label{font-weight:600;font-size:0.9rem;display:block;margin-bottom:4px;color:var(--text)}
 .settings-card .hint{font-size:0.75rem;color:var(--muted);margin-bottom:10px}
+.settings-card input[type="url"]{width:100%;background:var(--bg);border:1px solid rgba(255,255,255,0.08);color:var(--text);padding:10px 14px;border-radius:8px;font-size:0.85rem;outline:none;font-family:'Inter',sans-serif}
+.settings-card input:focus{border-color:var(--red)}
