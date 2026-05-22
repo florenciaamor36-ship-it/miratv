@@ -1,0 +1,13 @@
+{
+  "appId": "com.laclaveargentina.miratv",
+  "appName": "MiraTV",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": true
+  }
+}
