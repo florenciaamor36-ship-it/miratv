@@ -2,13 +2,13 @@ name: Build APK
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
+  workflow_dispatch:    # <--- ESTO ES CLAVE PARA EL BOTÓN MANUAL
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,17 +24,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Capacitor
+      - name: Install Capacitor and Build
         run: |
-          npm install
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init MiraTV com.laclaveargentina.miratv --web-dir=.
           npx cap add android
-
-      - name: Sync Android
-        run: npx cap sync android
-
-      - name: Build APK
-        run: |
+          npx cap sync
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
