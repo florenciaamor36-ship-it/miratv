@@ -1,0 +1,424 @@
+    }
+
+    function detectCategory(item) {
+        const text = ((item.name || '') + ' ' + (item.group || '')).toLowerCase();
+        if (text.includes('noticia') || text.includes('news')) return 'news';
+        if (text.includes('deporte') || text.includes('sport')) return 'sports';
+        if (text.includes('pelicula') || text.includes('movie')) return 'movies';
+        if (text.includes('serie')) return 'series';
+        if (text.includes('musica') || text.includes('music')) return 'music';
+        if (text.includes('infantil') || text.includes('kids')) return 'kids';
+        return 'all';
+    }
+
+    function renderTV() {
+        const container = document.getElementById('tvGrid');
+        let filtered = allTvChannels;
+        if (currentCategory !== 'all') {
+            filtered = filtered.filter(item => detectCategory(item) === currentCategory);
+        }
+        if (!filtered.length) {
+            container.innerHTML = '<p class="empty-msg">No hay canales en esta categoría</p>';
+            return;
+        }
+        const regions = { '🇦🇷 Argentina': [], '🌎 Latinoamérica': [], '🇪🇸 España / Europa': [], '🌍 Resto del mundo': [] };
+        filtered.forEach(item => { const region = getRegion(item); regions[region].push(item); });
+        container.innerHTML = '';
+        for (const [region, items] of Object.entries(regions)) {
+            if (items.length === 0) continue;
+            const regionDiv = document.createElement('div');
+            regionDiv.className = 'region-section';
+            regionDiv.innerHTML = `<div class="region-title">${region} (${items.length})</div>`;
+            container.appendChild(regionDiv);
+            const groups = {};
+            items.forEach(item => { const group = item.group || 'General'; if (!groups[group]) groups[group] = []; groups[group].push(item); });
+            Object.entries(groups).forEach(([group, groupItems]) => {
+                const isCollapsed = collapsedSections[`tv_${region}_${group}`] === true;
+                const section = document.createElement('div');
+                section.style.gridColumn = '1/-1';
+                section.innerHTML = `
+                    <div class="section-header ${isCollapsed ? '' : 'open'}">
+                        <h3>📂 ${group} (${groupItems.length})</h3>
+                        <span class="arrow">▶</span>
+                    </div>
+                    <div class="section-content ${isCollapsed ? 'hidden' : ''}"></div>
+                `;
+                const header = section.querySelector('.section-header');
+                const contentDiv = section.querySelector('.section-content');
+                header.onclick = () => {
+                    const isOpen = !contentDiv.classList.contains('hidden');
+                    contentDiv.classList.toggle('hidden');
+                    header.classList.toggle('open', isOpen);
+                    collapsedSections[`tv_${region}_${group}`] = !isOpen;
+                    localStorage.setItem('mira_collapsed', JSON.stringify(collapsedSections));
+                };
+                groupItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    const fav = favorites.some(f => f.name === item.name);
+                    card.onclick = () => openPlayer(item);
+                    card.innerHTML = `
+                        <img src="${item.logo || ''}" class="card-img" loading="lazy" onerror="this.style.display='none'">
+                        <div class="card-img" style="display:none; align-items:center; justify-content:center; font-size:2rem; background:#0d0d12">📺</div>
+                        <button class="card-fav ${fav ? 'favorited' : ''}" onclick="event.stopPropagation(); toggleFavorite('${escapeHtml(item.name)}', 'tv', ${JSON.stringify(item).replace(/"/g, '&quot;')})">${fav ? '★' : '☆'}</button>
+                        <span class="card-badge">TV</span>
+                        <div class="card-bottom"><div class="card-title">${escapeHtml(item.name || '?')}</div><div class="card-sub">${escapeHtml(item.group || '')}</div></div>
+                    `;
+                    contentDiv.appendChild(card);
+                });
+                regionDiv.appendChild(section);
+            });
+        }
+    }
+
+    function renderRadio() {
+        const container = document.getElementById('radioGrid');
+        if (!RADIOS.length) {
+            container.innerHTML = '<p class="empty-msg">Cargando radios...</p>';
+            return;
+        }
+        container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'section-content';
+        RADIOS.forEach(radio => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            const fav = favorites.some(f => f.name === radio.name);
+            card.onclick = () => openPlayer(radio);
+            card.innerHTML = `
+                <div class="card-img" style="display:flex; align-items:center; justify-content:center; font-size:2rem; background:#0d0d12">📻</div>
+                <button class="card-fav ${fav ? 'favorited' : ''}" onclick="event.stopPropagation(); toggleFavorite('${escapeHtml(radio.name)}', 'radio', ${JSON.stringify(radio).replace(/"/g, '&quot;')})">${fav ? '★' : '☆'}</button>
+                <span class="card-badge">RADIO</span>
+                <div class="card-bottom"><div class="card-title">${escapeHtml(radio.name || '?')}</div><div class="card-sub">${escapeHtml(radio.group || '')}</div></div>
+            `;
+            grid.appendChild(card);
+        });
+        container.appendChild(grid);
+    }
+
+    function renderFavorites() {
+        const container = document.getElementById('favGrid');
+        const favItems = favorites.filter(f => {
+            if (f.type === 'tv') return allTvChannels.some(i => i.name === f.name);
+            if (f.type === 'radio') return RADIOS.some(i => i.name === f.name);
+            return false;
+        });
+        if (!favItems.length) {
+            container.innerHTML = '<p class="empty-msg">No hay favoritos</p>';
+            return;
+        }
+        container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'section-content';
+        favItems.forEach(fav => {
+            if (fav.type === 'tv') {
+                const item = allTvChannels.find(i => i.name === fav.name);
+                if (item) {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.onclick = () => openPlayer(item);
+                    card.innerHTML = `
+                        <img src="${item.logo || ''}" class="card-img" loading="lazy" onerror="this.style.display='none'">
+                        <div class="card-img" style="display:none; align-items:center; justify-content:center; font-size:2rem; background:#0d0d12">📺</div>
+                        <button class="card-fav favorited" onclick="event.stopPropagation(); toggleFavorite('${escapeHtml(item.name)}', 'tv', ${JSON.stringify(item).replace(/"/g, '&quot;')})">★</button>
+                        <span class="card-badge">TV</span>
+                        <div class="card-bottom"><div class="card-title">${escapeHtml(item.name || '?')}</div><div class="card-sub">${escapeHtml(item.group || '')}</div></div>
+                    `;
+                    grid.appendChild(card);
+                }
+            } else if (fav.type === 'radio') {
+                const radio = RADIOS.find(i => i.name === fav.name);
+                if (radio) {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.onclick = () => openPlayer(radio);
+                    card.innerHTML = `
+                        <div class="card-img" style="display:flex; align-items:center; justify-content:center; font-size:2rem; background:#0d0d12">📻</div>
+                        <button class="card-fav favorited" onclick="event.stopPropagation(); toggleFavorite('${escapeHtml(radio.name)}', 'radio', ${JSON.stringify(radio).replace(/"/g, '&quot;')})">★</button>
+                        <span class="card-badge">RADIO</span>
+                        <div class="card-bottom"><div class="card-title">${escapeHtml(radio.name || '?')}</div><div class="card-sub">${escapeHtml(radio.group || '')}</div></div>
+                    `;
+                    grid.appendChild(card);
+                }
+            }
+        });
+        container.appendChild(grid);
+    }
+
+    function toggleFavorite(name, type, data) {
+        const exists = favorites.find(f => f.name === name);
+        if (exists) {
+            favorites = favorites.filter(f => f.name !== name);
+            toast('💔 Quitado de favoritos');
+        } else {
+            favorites.push({ name, type, url: data?.url, data: data });
+            toast('⭐ Agregado a favoritos');
+        }
+        localStorage.setItem('mira_favs', JSON.stringify(favorites));
+        if (currentPage === 'favorites') renderFavorites();
+    }
+
+    function clearFavorites() {
+        if (confirm('¿Eliminar todos los favoritos?')) {
+            favorites = [];
+            localStorage.setItem('mira_favs', JSON.stringify(favorites));
+            renderFavorites();
+            toast('🗑️ Favoritos eliminados');
+        }
+    }
+
+    function reloadAll() {
+        allTvChannels = [];
+        loadAllContent();
+    }
+
+    function updateHero() {
+        let pool = currentPage === 'tv' ? allTvChannels : RADIOS;
+        if (!pool.length) return;
+        currentHero = pool[Math.floor(Math.random() * pool.length)];
+        document.getElementById('heroTitle').textContent = currentHero.name || 'Contenido';
+        document.getElementById('heroGroup').textContent = currentHero.group || '';
+        document.getElementById('heroBadge').textContent = currentPage === 'radio' ? '📻 RADIO DESTACADA' : '📺 CANAL DESTACADO';
+        const logoImg = document.getElementById('heroLogoImg');
+        const logoFb = document.getElementById('heroLogoFb');
+        if (currentHero.logo && currentHero.logo.length > 10 && currentPage === 'tv') {
+            logoImg.src = currentHero.logo;
+            logoImg.style.display = 'block';
+            logoFb.style.display = 'none';
+        } else {
+            logoImg.style.display = 'none';
+            logoFb.style.display = 'flex';
+            logoFb.textContent = (currentHero.name?.charAt(0) || '?').toUpperCase();
+        }
+        const heroPlayBtn = document.getElementById('heroPlayBtn');
+        heroPlayBtn.onclick = (e) => { e.stopPropagation(); if (currentHero) openPlayer(currentHero); };
+        document.getElementById('heroSection').onclick = () => { if (currentHero) openPlayer(currentHero); };
+    }
+
+    function setCategory(category) {
+        currentCategory = category;
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.cat === category));
+        renderTV();
+    }
+
+    function renderCurrentPage() {
+        if (currentPage === 'tv') renderTV();
+        else if (currentPage === 'radio') renderRadio();
+        else if (currentPage === 'favorites') renderFavorites();
+        updateHero();
+    }
+
+    function escapeHtml(str) { return (str || '').replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+    // ==================== REPRODUCTOR ====================
+    function openPlayer(item) {
+        if (!item || !item.url) { toast('❌ No hay URL'); return; }
+        currentPlayerItem = item;
+        document.getElementById('playerTitle').textContent = item.name || 'Reproduciendo';
+        document.getElementById('playerOverlay').classList.add('active');
+        const video = document.getElementById('videoPlayer');
+        const audio = document.getElementById('audioPlayer');
+        const loading = document.getElementById('playerLoading');
+        loading.style.display = 'flex';
+        loading.innerHTML = '<div class="spinner"></div><span>Cargando...</span>';
+
+        if (item.url.includes('.mp3') || item.url.includes('.aac')) {
+            video.style.display = 'none';
+            audio.style.display = 'block';
+            audio.src = item.url;
+            audio.oncanplay = () => {
+                loading.style.display = 'none';
+                audio.play().catch(e => { loading.innerHTML = '<div class="spinner"></div><span>🔊 Presiona play</span>'; setTimeout(() => { loading.style.display = 'none'; }, 2000); });
+                startProgressAudio();
+            };
+            audio.load();
+        } else {
+            audio.style.display = 'none';
+            video.style.display = 'block';
+            if (hls) { hls.destroy(); hls = null; }
+            const onReady = () => {
+                loading.style.display = 'none';
+                video.play().catch(e => { loading.innerHTML = '<div class="spinner"></div><span>🔊 Presiona play</span>'; setTimeout(() => { loading.style.display = 'none'; }, 2000); });
+                startProgressVideo();
+            };
+            if (item.url.includes('.m3u8') && Hls.isSupported()) {
+                hls = new Hls({ enableWorker: true });
+                hls.loadSource(item.url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, onReady);
+                hls.on(Hls.Events.ERROR, () => { loading.innerHTML = '<div class="spinner"></div><span>❌ Error</span>'; });
+            } else {
+                video.src = item.url;
+                video.oncanplay = onReady;
+                video.load();
+            }
+        }
+    }
+
+    function closePlayer() {
+        document.getElementById('playerOverlay').classList.remove('active');
+        if (hls) { hls.destroy(); hls = null; }
+        const video = document.getElementById('videoPlayer');
+        const audio = document.getElementById('audioPlayer');
+        video.pause();
+        audio.pause();
+        video.src = '';
+        audio.src = '';
+        clearInterval(progressInterval);
+        currentPlayerItem = null;
+    }
+
+    function togglePlay() {
+        const video = document.getElementById('videoPlayer');
+        const audio = document.getElementById('audioPlayer');
+        const btn = document.getElementById('playPauseBtn');
+        if (currentPlayerItem && (currentPlayerItem.url.includes('.mp3') || currentPlayerItem.url.includes('.aac'))) {
+            if (audio.paused) { audio.play(); btn.textContent = '⏸'; }
+            else { audio.pause(); btn.textContent = '▶'; }
+        } else {
+            if (video.paused) { video.play(); btn.textContent = '⏸'; }
+            else { video.pause(); btn.textContent = '▶'; }
+        }
+    }
+
+    function toggleMute() {
+        const video = document.getElementById('videoPlayer');
+        const audio = document.getElementById('audioPlayer');
+        if (currentPlayerItem && (currentPlayerItem.url.includes('.mp3') || currentPlayerItem.url.includes('.aac'))) {
+            audio.muted = !audio.muted;
+            document.getElementById('muteBtn').textContent = audio.muted ? '🔇' : '🔊';
+        } else {
+            video.muted = !video.muted;
+            document.getElementById('muteBtn').textContent = video.muted ? '🔇' : '🔊';
+        }
+    }
+
+    function seekVideo(seconds) {
+        const video = document.getElementById('videoPlayer');
+        if (!video.duration) return;
+        video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + seconds));
+        if (video.paused) video.play();
+    }
+
+    function startProgressVideo() {
+        if (progressInterval) clearInterval(progressInterval);
+        const video = document.getElementById('videoPlayer');
+        const container = document.getElementById('progressContainerPlayer');
+        container.onclick = (e) => {
+            if (!video.duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            video.currentTime = percent * video.duration;
+        };
+        progressInterval = setInterval(() => {
+            if (!video.duration) return;
+            const percent = (video.currentTime / video.duration) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            const format = (t) => `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+            document.getElementById('timeDisplay').textContent = `${format(video.currentTime)} / ${format(video.duration)}`;
+        }, 500);
+    }
+
+    function startProgressAudio() {
+        if (progressInterval) clearInterval(progressInterval);
+        const audio = document.getElementById('audioPlayer');
+        progressInterval = setInterval(() => {
+            if (!audio.duration) return;
+            const percent = (audio.currentTime / audio.duration) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            const format = (t) => `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+            document.getElementById('timeDisplay').textContent = `${format(audio.currentTime)} / ${format(audio.duration)}`;
+        }, 500);
+    }
+
+    function toggleFullscreen() {
+        const player = document.getElementById('playerOverlay');
+        if (!document.fullscreenElement) player.requestFullscreen();
+        else document.exitFullscreen();
+    }
+
+    // ==================== UI ====================
+    function switchPage(page) {
+        currentPage = page;
+        document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(`page${page.charAt(0).toUpperCase() + page.slice(1)}`).classList.add('active');
+        renderCurrentPage();
+    }
+
+    function openSearch() {
+        document.getElementById('searchOverlay').classList.add('active');
+        document.getElementById('searchInput').focus();
+    }
+
+    function closeSearch() {
+        document.getElementById('searchOverlay').classList.remove('active');
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+    }
+
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+        const tvResults = allTvChannels.filter(i => (i.name || '').toLowerCase().includes(q)).map(i => ({ ...i, type: 'tv' }));
+        const radioResults = RADIOS.filter(i => (i.name || '').toLowerCase().includes(q)).map(i => ({ ...i, type: 'radio' }));
+        const results = [...tvResults, ...radioResults].slice(0, 50);
+        document.getElementById('searchResults').innerHTML = results.map(i => `
+            <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.03); margin-bottom:6px; border-radius:8px; cursor:pointer" onclick="openPlayer(${JSON.stringify(i).replace(/"/g, '&quot;')}); closeSearch();">
+                <div style="width:40px; height:40px; background:#0d0d12; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem">${i.type === 'radio' ? '📻' : '📺'}</div>
+                <div><div style="font-weight:600; font-size:0.7rem">${escapeHtml(i.name)}</div><div style="font-size:0.5rem; color:#5c5c65">${escapeHtml(i.group || '')}</div></div>
+            </div>
+        `).join('');
+    });
+
+    function toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function toggleDrawer() {
+        document.getElementById('drawer').classList.toggle('open');
+        document.getElementById('drawerOverlay').classList.toggle('open');
+    }
+
+    function closeDrawer() {
+        document.getElementById('drawer').classList.remove('open');
+        document.getElementById('drawerOverlay').classList.remove('open');
+    }
+
+    // Filtros
+    const categories = [
+        { id: 'all', name: '📺 Todos' },
+        { id: 'news', name: '📰 Noticias' },
+        { id: 'sports', name: '⚽ Deportes' },
+        { id: 'movies', name: '🎬 Películas' },
+        { id: 'series', name: '📺 Series' },
+        { id: 'music', name: '🎵 Música' },
+        { id: 'kids', name: '🧸 Infantiles' }
+    ];
+    const filterBar = document.getElementById('filterBar');
+    categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = `filter-btn ${cat.id === 'all' ? 'active' : ''}`;
+        btn.dataset.cat = cat.id;
+        btn.innerHTML = cat.name;
+        btn.onclick = () => setCategory(cat.id);
+        filterBar.appendChild(btn);
+    });
+
+    document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => switchPage(btn.dataset.page)));
+    document.getElementById('menuBtn').onclick = toggleDrawer;
+    document.getElementById('searchBtn').onclick = openSearch;
+    document.getElementById('searchOverlay').addEventListener('click', (e) => { if (e.target === document.getElementById('searchOverlay')) closeSearch(); });
+
+    if (isLoggedIn) {
+        document.getElementById('premiumStatus').innerHTML = `👑 ${localStorage.getItem('mira_username') || 'Usuario'} · Modo Premium`;
+        document.getElementById('premiumStatus').style.color = '#f5c518';
+    }
+
+    loadAllContent();
+</script>
+</body>
+</html>
