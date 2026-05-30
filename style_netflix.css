@@ -1,0 +1,54 @@
+/* Estilos estilo Netflix para VOD */
+.vod-row {
+    margin-bottom: 30px;
+    padding-left: 10px;
+}
+.vod-row-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #e5e5e5;
+}
+.vod-carousel {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 15px;
+    scrollbar-width: none; /* Ocultar scrollbar en Firefox */
+}
+.vod-carousel::-webkit-scrollbar {
+    display: none; /* Ocultar scrollbar en Chrome/Safari */
+}
+.vod-card {
+    flex: 0 0 140px;
+    aspect-ratio: 2/3;
+    background: #141414;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s;
+    position: relative;
+}
+.vod-card:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+.vod-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.vod-card-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+    font-size: 0.7rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.vod-card:hover .vod-card-info {
+    opacity: 1;
+}
